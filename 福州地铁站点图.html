@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>福州地铁线路图</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        #header { 
+            height: 70px; 
+            background: #1E90FF; 
+            color: white; 
+            padding: 0 20px; 
+            display: flex; 
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        #container { 
+            flex: 1; 
+            display: flex; 
+        }
+        #mapView { 
+            flex: 3; 
+        }
+        #basemapPanel { 
+            width: 250px; 
+            background: #f5f5f5; 
+            padding: 15px; 
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        .panel-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #1E90FF;
+            padding-bottom: 5px;
+        }
+        .basemap-btn { 
+            margin: 10px 0; 
+            padding: 10px; 
+            width: 100%;
+            background: white; 
+            border: 1px solid #ddd; 
+            cursor: pointer;
+            transition: all 0.3s;
+            border-radius: 4px;
+            text-align: left;
+        }
+        .basemap-btn:hover { 
+            background: #1E90FF; 
+            color: white; 
+            transform: translateX(5px);
+        }
+        .metro-info {
+            margin-top: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.32/"></script>
+</head>
+<body>
+    <header id="header"><h1>福州地铁站点图</h1></header>
+    <div id="container">
+        <div id="mapView"></div>
+        <div id="basemapPanel">
+            <div class="panel-title">地图选项</div>
+            <button class="basemap-btn" onclick="changeBasemap('streets-vector')">街道地图</button>
+            <button class="basemap-btn" onclick="changeBasemap('satellite')">卫星地图</button>
+            <button class="basemap-btn" onclick="changeBasemap('topo-vector')">地形图</button>
+            <button class="basemap-btn" onclick="changeBasemap('gray-vector')">灰度地图</button>
+            <button class="basemap-btn" onclick="changeBasemap('hybrid')">混合地图</button>
+            
+            <div class="metro-info">
+                <h3>福州地铁信息</h3>
+                <p>福州地铁是服务于福州市的城市轨道交通系统，目前已开通多条线路，连接城市主要区域。</p>
+                <p>点击地图上的地铁线路或站点查看详细信息。</p>
+            </div>
+        </div>
+    </div>
+
+<script>
+// 全局声明视图变量
+let view;
+
+require([
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/layers/FeatureLayer",
+    "esri/widgets/ScaleBar",
+    "esri/widgets/Legend",
+    "esri/widgets/Search",
+    "esri/widgets/LayerList",
+    "esri/symbols/SimpleLineSymbol",
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/renderers/SimpleRenderer"
+], (Map, MapView, FeatureLayer, ScaleBar, Legend, Search, LayerList, 
+    SimpleLineSymbol, SimpleMarkerSymbol, SimpleRenderer) => {
+    
+    // 初始化地图
+    const map = new Map({ 
+        basemap: "streets-vector" // 默认底图
+    });
+
+    // 创建视图
+    view = new MapView({
+        container: "mapView",
+        map: map,
+        center: [119.3, 26.08], // 福州中心坐标
+        zoom: 12
+    });
+
+    // 添加福州地铁线路图层
+    const metroLineLayer = new FeatureLayer({
+        url: "https://www.geosceneonline.cn/server/rest/services/Hosted/福州地铁/FeatureServer",
+        renderer: new SimpleRenderer({
+            symbol: new SimpleLineSymbol({
+                color: [0, 112, 255, 0.8],
+                width: 4
+            })
+        }),
+        popupTemplate: {
+            title: "地铁线路: {LINE_NAME}",
+            content: [{
+                type: "fields",
+                fieldInfos: [
+                    { fieldName: "LINE_NAME", label: "线路名称" },
+                    { fieldName: "LENGTH", label: "线路长度(km)", format: { digitSeparator: true, places: 2 } },
+                    { fieldName: "STATION_COUNT", label: "站点数量" },
+                    { fieldName: "OPEN_DATE", label: "开通日期" }
+                ]
+            }]
+        }
+    });
+    map.add(metroLineLayer);
+
+    // 添加地铁站点图层（假设服务中包含站点数据）
+    const metroStationLayer = new FeatureLayer({
+        url: "https://www.geosceneonline.cn/server/rest/services/Hosted/福州地铁/FeatureServer/0", // 假设0是站点图层
+        renderer: new SimpleRenderer({
+            symbol: new SimpleMarkerSymbol({
+                color: [255, 255, 0],
+                size: 8,
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1
+                }
+            })
+        }),
+        popupTemplate: {
+            title: "地铁站: {STATION_NAME}",
+            content: [{
+                type: "fields",
+                fieldInfos: [
+                    { fieldName: "STATION_NAME", label: "站点名称" },
+                    { fieldName: "LINE_NAME", label: "所属线路" },
+                    { fieldName: "OPEN_DATE", label: "开通日期" },
+                    { fieldName: "ADDRESS", label: "站点地址" }
+                ]
+            }]
+        }
+    });
+    map.add(metroStationLayer);
+
+    // 添加比例尺
+    view.ui.add(new ScaleBar({
+        view: view,
+        unit: "metric"
+    }), "bottom-left");
+
+    // 添加图例
+    view.ui.add(new Legend({
+        view: view,
+        layerInfos: [
+            {
+                layer: metroLineLayer,
+                title: "地铁线路"
+            },
+            {
+                layer: metroStationLayer,
+                title: "地铁站点"
+            }
+        ]
+    }), "top-right");
+
+    // 添加搜索工具
+    view.ui.add(new Search({
+        view: view,
+        sources: [{
+            layer: metroStationLayer,
+            searchFields: ["STATION_NAME"],
+            displayField: "STATION_NAME",
+            placeholder: "搜索地铁站点",
+            resultGraphicEnabled: true,
+            resultSymbol: {
+                type: "simple-marker",
+                color: [255, 0, 0],
+                size: 12,
+                outline: {
+                    color: [255, 255, 255],
+                    width: 2
+                }
+            }
+        }]
+    }), "top-left");
+
+    // 添加图层列表
+    view.ui.add(new LayerList({
+        view: view
+    }), "top-right");
+});
+
+// 底图切换函数
+function changeBasemap(basemapId) {
+    if (view) {
+        view.map.basemap = basemapId;
+        
+        // 添加切换反馈
+        console.log("当前底图:", basemapId);
+        view.ui.add({
+            content: `已切换至 ${getBasemapName(basemapId)} 底图`,
+            position: "bottom-right",
+            style: "background:white;padding:8px;border:1px solid #ddd;border-radius:4px;"
+        }, "basemap-notice");
+        setTimeout(() => view.ui.remove("basemap-notice"), 2000);
+    }
+}
+
+// 获取底图中文名称
+function getBasemapName(basemapId) {
+    const names = {
+        "streets-vector": "街道地图",
+        "satellite": "卫星地图",
+        "topo-vector": "地形图",
+        "gray-vector": "灰度地图",
+        "hybrid": "混合地图"
+    };
+    return names[basemapId] || basemapId;
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
